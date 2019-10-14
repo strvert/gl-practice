@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.2)
+project(gl_game CXX)
+set(CMAKE_CXX_FLAGS "-std=c++1z -lGL -lGLEW -lglfw -g3")
+include_directories(include)
+include_directories(thirdparty/include)
+file(GLOB_RECURSE gl_game_srouce "src/*.cpp")
+file(GLOB_RECURSE gl_game_thirdparty_source "thirdparty/*.cpp")
+add_executable(main main.cpp ${gl_game_srouce} ${gl_game_thirdparty_source})
