@@ -1,0 +1,1 @@
+/usr/bin/c++  -O0 -g3 -std=c++1z -ldl -lGL -lglfw  -rdynamic CMakeFiles/gl_3d.dir/main.cpp.o CMakeFiles/gl_3d.dir/src/file.cpp.o CMakeFiles/gl_3d.dir/thirdparty/glad/src/glad.c.o  -o gl_3d 
