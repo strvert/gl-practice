@@ -1,3 +1,0 @@
-/home/strv/Documents/repo/gl-practice/gl_3d/build/CMakeFiles/rebuild_cache.dir
-/home/strv/Documents/repo/gl-practice/gl_3d/build/CMakeFiles/gl_3d.dir
-/home/strv/Documents/repo/gl-practice/gl_3d/build/CMakeFiles/edit_cache.dir

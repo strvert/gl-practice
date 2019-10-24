@@ -1,13 +1,15 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-
-#include "file.h"
+#include "stb_image.h"
 
 #include <cstdint>
 #include <iostream>
 #include <vector>
 #include <string>
 #include <cmath>
+
+#include "textures.h"
+#include "shader.h"
 
 using std::cout;
 using std::endl;
@@ -16,7 +18,6 @@ using std::uint8_t;
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 
 void processInput(GLFWwindow *window);
-int createProgram(std::string vertexShaderFile, std::string fragmentShaderFile);
 
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
@@ -46,13 +47,17 @@ int main()
         return -1;
     }
 
-    int simpleShaderProgram1 = createProgram("shaders/simple_vertex.glsl", "shaders/simple_fragment.glsl");
-    int simpleShaderProgram2 = createProgram("shaders/simple_vertex.glsl", "shaders/simple_fragment2.glsl");
+    glEnable(GL_DEBUG_OUTPUT);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_BLEND);
+
+    Shader simpleShader1("shaders/texture_vertex.glsl", "shaders/texture_fragment.glsl");
+    Shader simpleShader2("shaders/texture_vertex2.glsl", "shaders/texture_fragment2.glsl");
 
     float triangle_vertices[] = {
-        -0.5f, -0.5f, 0.0f, 
-         0.5f, -0.5f, 0.0f, 
-         0.0f,  0.5f, 0.0f,
+        -0.5f, -0.5f,  0.0f,    1.0f,  1.0f,  0.0f,   (-0.5f+1)/2,  (-0.5f+1)/2,
+         0.5f, -0.5f,  0.0f,    0.0f,  1.0f,  0.0f,   (0.5f+1)/2,   (-0.5f+1)/2,
+         0.0f,  0.5f,  0.0f,    0.0f,  0.0f,  1.0f,   (0.0f+1)/2,   (0.5f+1)/2
     }; 
 
     unsigned TRIANGLE_VBO, TRIANGLE_VAO;
@@ -60,21 +65,24 @@ int main()
     glGenBuffers(1, &TRIANGLE_VBO);
 
     glBindVertexArray(TRIANGLE_VAO);
-
     glBindBuffer(GL_ARRAY_BUFFER, TRIANGLE_VBO);
+
     glBufferData(GL_ARRAY_BUFFER, sizeof(triangle_vertices), triangle_vertices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(GL_FLOAT), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(3*sizeof(float)));
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(6*sizeof(float)));
+    glEnableVertexAttribArray(2);
+    
     glBindBuffer(GL_ARRAY_BUFFER, 0);
-
     glBindVertexArray(0);
-
     
     float square_vertices[] = {
-        -0.9f, -0.9f,  0.0f, // ↙
-         0.0f, -0.9f,  0.0f, // ➘
-        -0.9f,  0.3f,  0.0f, // ↖ 
-         0.0f,  0.3f,  0.0f, // ➚
+        -0.9f, -0.9f,  0.0f,   1.0f,  0.0f,  0.0f,  0.0f,  1.0f, // ↙
+         0.0f, -0.9f,  0.0f,   0.0f,  1.0f,  0.0f,  1.0f,  1.0f, // ➘
+        -0.9f,  0.3f,  0.0f,   0.0f,  0.0f,  1.0f,  0.0f,  0.0f, // ↖ 
+         0.0f,  0.3f,  0.0f,   1.0f,  0.0f,  1.0f,  1.0f,  0.0f, // ➚
     };
     unsigned square_indices[] = {
         0, 1, 2,
@@ -94,11 +102,23 @@ int main()
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, SQUARE_EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(square_indices), square_indices, GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(GL_FLOAT), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8*sizeof(GL_FLOAT), (void*)(sizeof(float)*0));
     glEnableVertexAttribArray(0);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8*sizeof(GL_FLOAT), (void*)(sizeof(float)*3));
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8*sizeof(GL_FLOAT), (void*)(sizeof(float)*6));
+    glEnableVertexAttribArray(2);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
     glBindVertexArray(0);
+
+    Textures::registerNewTexture("resources/paving_stones/PavingStones41_col.jpg", "stones");
+    Textures::registerNewTexture("resources/rocks/Rocks19_col.jpg", "rocks");
+    Textures::registerNewTexture("resources/thinking_face.png", "tf");
+
+    simpleShader2.use();
+    simpleShader2.setInt("texture1", 0);
+    simpleShader2.setInt("texture2", 1);
 
     while (!glfwWindowShouldClose(window))
     {
@@ -107,19 +127,16 @@ int main()
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        glUseProgram(simpleShaderProgram1);
+        Textures::bindTexture("stones", 0);
+        Textures::bindTexture("tf", 1);
+
+        simpleShader1.use();
         glBindVertexArray(TRIANGLE_VAO);
         glDrawArrays(GL_TRIANGLES, 0, 3);
 
-        glUseProgram(simpleShaderProgram2);
-
-        // update shader uniform
+        simpleShader2.use();
         float timeValue = glfwGetTime();
-        float greenValue = sin(timeValue) / 2.0f + 0.5f;
-        float redValue = sin(timeValue + 2*M_PI/3) / 2.0f + 0.5f;
-        float blueValue = sin(timeValue + 4*M_PI/3) / 2.0f + 0.5f;
-        int vertexColorLocation = glGetUniformLocation(simpleShaderProgram2, "ourColor");
-        glUniform4f(vertexColorLocation, redValue, greenValue, blueValue, 1.0f);
+        simpleShader2.setFloat("time", timeValue);
         glBindVertexArray(SQUARE_VAO);
         glDrawElements(GL_TRIANGLES, 3*2, GL_UNSIGNED_INT, 0);
 
@@ -148,51 +165,4 @@ void processInput(GLFWwindow *window)
     {
         glfwSetWindowShouldClose(window, true);
     }
-}
-
-int createProgram(std::string vertexShaderFile, std::string fragmentShaderFile)
-{
-    std::string vertexShaderString = File::Read(vertexShaderFile);
-    char* vertexShaderSource = (char*)vertexShaderString.c_str();
-
-    int success;
-    char infoLog[512];
-
-    int vertexShader = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShader, 1, &vertexShaderSource, nullptr);
-    glCompileShader(vertexShader);
-    glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(vertexShader, 512, nullptr, infoLog);
-        cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED" << endl << infoLog << endl;
-    }
-
-    std::string fragmentShaderString = File::Read(fragmentShaderFile);
-    char* fragmentShaderSource = (char*)fragmentShaderString.c_str();
-
-    int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-    glShaderSource(fragmentShader, 1, &fragmentShaderSource, nullptr);
-    glCompileShader(fragmentShader);
-    glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-    if (!success)
-    {
-        glGetShaderInfoLog(fragmentShader, 512, nullptr, infoLog);
-        cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED" << endl << infoLog << endl;
-    }
-
-    int shaderProgram = glCreateProgram();
-    glAttachShader(shaderProgram, vertexShader);
-    glAttachShader(shaderProgram, fragmentShader);
-    glLinkProgram(shaderProgram);
-    glGetProgramiv(shaderProgram, GL_LINK_STATUS,  &success);
-    if (!success)
-    {
-        glGetProgramInfoLog(shaderProgram, 512, nullptr, infoLog);
-        cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED" << endl << infoLog << endl;
-    }
-    glDeleteShader(vertexShader);
-    glDeleteShader(fragmentShader);
-    
-    return shaderProgram;
 }
